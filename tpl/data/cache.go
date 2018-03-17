@@ -17,7 +17,9 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/gohugoio/hugo/config"
 	"github.com/gohugoio/hugo/helpers"
@@ -82,4 +84,15 @@ func writeCache(id string, c []byte, fs afero.Fs, cfg config.Provider, ignoreCac
 
 func deleteCache(id string, fs afero.Fs, cfg config.Provider) error {
 	return fs.Remove(getCacheFileID(cfg, id))
+}
+
+func deleteCacheOlderThan(ttl int, id string, fs afero.Fs, cfg config.Provider) error {
+	info, err := os.Stat(getCacheFileID(cfg, id))
+	if err != nil {
+		return nil
+	}
+	if time.Now().After(info.ModTime().Add(time.Duration(ttl) * time.Second)) {
+		return deleteCache(id, fs, cfg)
+	}
+	return nil
 }

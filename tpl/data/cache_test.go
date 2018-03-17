@@ -16,6 +16,7 @@ package data
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
@@ -59,5 +60,40 @@ func TestCache(t *testing.T) {
 		} else {
 			assert.Equal(t, string(test.content), string(c))
 		}
+
+		err = deleteCache(test.path, fs, cfg)
+		assert.NoError(t, err, msg)
+
+		c, err := getCache(test.path, fs, cfg, test.ignore)
+		assert.NoError(t, err, msg)
+		assert.Nil(t, c, msg)
 	}
+}
+
+func TestCacheTTL(t *testing.T) {
+	t.Parallel()
+
+	fs := new(afero.MemMapFs)
+	cfg := viper.New()
+
+	path := "foo/bar.html"
+	content := "Snowden"
+
+	err = writeCache(path, content, fs, cfg, false)
+	err = deleteCacheOlderThan(0, path, fs, cfg)
+	assert.NoError(t, err)
+	c, err := getCache(path, fs, cfg)
+	assert.NoError(t, err)
+	assert.Nil(t, c)
+
+	err = writeCache(path, content, fs, cfg, false)
+	time.Sleep(1)
+	err = deleteCacheOlderThan(2, path, fs, cfg)
+	c, err := getCache(path, fs, cfg, false)
+	assert.Equal(t, string(content), string(c))
+
+	time.Sleep(1)
+	err = deleteCacheOlderThan(2, path, fs, cfg)
+	assert.NoError(t, err)
+	assert.Nil(t, c)
 }
