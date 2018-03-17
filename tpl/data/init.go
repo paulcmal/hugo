@@ -38,6 +38,16 @@ func init() {
 			[]string{"getJSON"},
 			[][2]string{},
 		)
+
+		ns.AddMethodMapping(ctx.GetCachedJSON,
+			[]string{"getCachedJSON"},
+			[][2]string{},
+		)
+
+		ns.AddMethodMapping(ctx.GetCachedCSV,
+			[]string{"getCachedCSV"},
+			[][2]string{},
+		)
 		return ns
 	}
 

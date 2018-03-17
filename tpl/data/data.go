@@ -88,6 +88,18 @@ func (ns *Namespace) GetCSV(sep string, urlParts ...string) (d [][]string, err e
 	return
 }
 
+// GetCachedCSV calls GetCSV and stores the file for ttl seconds
+// That is, if the cached file is older than ttl seconds, it will be deleted
+func (ns *Namespace) GetCachedCSV(ttl int, sep string, urlParts ...string) (d [][]string, err error) {
+	url := strings.Join(urlParts, "")
+
+	err = deleteCacheOlderThan(ttl, url, ns.deps.Fs.Source, ns.deps.Cfg)
+	if err != nil {
+		return nil, err
+	}
+	return ns.GetCSV(sep, url)
+}
+
 // GetJSON expects one or n-parts of a URL to a resource which can either be a local or a remote one.
 // If you provide multiple parts they will be joined together to the final URL.
 // GetJSON returns nil or parsed JSON to use in a short code.
@@ -122,6 +134,17 @@ func (ns *Namespace) GetJSON(urlParts ...string) (v interface{}, err error) {
 		break
 	}
 	return
+}
+
+// GetCachedJSON calls GetJSON and stores the file for ttl seconds
+// That is, if the cached file is older than ttl seconds, it will be deleted
+func (ns *Namespace) GetCachedJSON(ttl int, urlParts ...string) (v interface{}, err error) {
+	url := strings.Join(urlParts, "")
+	err = deleteCacheOlderThan(ttl, url, ns.deps.Fs.Source, ns.deps.Cfg)
+	if err != nil {
+		return nil, err
+	}
+	return ns.GetJSON(url)
 }
 
 // parseCSV parses bytes of CSV data into a slice slice string or an error

@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -120,6 +121,54 @@ func TestGetCSV(t *testing.T) {
 	}
 }
 
+func TestGetCachedCSV(t *testing.T) {
+	t.Parallel()
+
+	ns := New(newDeps(viper.New()))
+	url := `http://success/`
+	content := `Sydney,San Francisco,Stockholm`
+	expect := []string{"Sydney", "San Francisco", "Stockholm"}
+
+	// Setup HTTP test server
+	var srv *httptest.Server
+	srv, ns.client = getTestServer(func(w http.ResponseWriter, r *http.Request) {
+		if !haveHeader(r.Header, "Accept", "text/csv") {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Add("Content-type", "text/csv")
+		w.Write([]byte(content))
+	})
+	defer func() { srv.Close() }()
+
+	got, err := ns.GetCachedCSV(1, url)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.EqualValues(t, expect, got)
+
+	content2 := `Kropotkine,Davis`
+	expect2 := []string{"Kropotkine", "Davis"}
+	var srv2 *httptest.Server
+	srv2, ns.client = getTestServer(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-type", "application/json")
+		w.Write([]byte(content2))
+	})
+	defer func() { srv2.Close() }()
+
+	got, err := ns.GetCachedCSV(1, url)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.EqualValues(t, expect, got)
+
+	time.Sleep(2)
+
+	got, err := ns.GetCachedCSV(1, url)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.EqualValues(t, expect2, got)
+}
+
 func TestGetJSON(t *testing.T) {
 	t.Parallel()
 
@@ -198,6 +247,54 @@ func TestGetJSON(t *testing.T) {
 
 		assert.EqualValues(t, test.expect, got, msg)
 	}
+}
+
+func TestGetCachedJSON(t *testing.T) {
+	t.Parallel()
+
+	ns := New(newDeps(viper.New()))
+	url := `http://success/`
+	content := `{"gomeetup":["Sydney","San Francisco","Stockholm"]}`
+	expect := map[string]interface{}{"gomeetup": []interface{}{"Sydney", "San Francisco", "Stockholm"}}
+
+	// Setup HTTP test server
+	var srv *httptest.Server
+	srv, ns.client = getTestServer(func(w http.ResponseWriter, r *http.Request) {
+		if !haveHeader(r.Header, "Accept", "application/json") {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Add("Content-type", "application/json")
+		w.Write([]byte(content))
+	})
+	defer func() { srv.Close() }()
+
+	got, err := ns.GetCachedJSON(1, url)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.EqualValues(t, expect, got)
+
+	content2 := `{"test": "bar"}`
+	expect2 := map[string]interface{}{"test": "bar"}
+	var srv2 *httptest.Server
+	srv2, ns.client = getTestServer(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-type", "application/json")
+		w.Write([]byte(content2))
+	})
+	defer func() { srv2.Close() }()
+
+	got, err := ns.GetCachedJSON(1, url)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.EqualValues(t, expect, got)
+
+	time.Sleep(2)
+
+	got, err := ns.GetCachedJSON(1, url)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.EqualValues(t, expect2, got)
 }
 
 func TestParseCSV(t *testing.T) {
